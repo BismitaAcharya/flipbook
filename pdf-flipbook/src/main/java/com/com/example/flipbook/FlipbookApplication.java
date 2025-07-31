@@ -31,32 +31,39 @@ public class FlipbookApplication implements WebMvcConfigurer {
 
     @PostConstruct
     public void init() throws IOException {
-        Path path = Paths.get(IMAGE_DIR);
-        if (Files.exists(path)) {
-            FileSystemUtils.deleteRecursively(path);
+        // Clear and create the directory for storing images
+        Path dir = Paths.get(IMAGE_DIR);
+        if (Files.exists(dir)) {
+            FileSystemUtils.deleteRecursively(dir);
         }
-        Files.createDirectories(path);
+        Files.createDirectories(dir);
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Map<String,Object> uploadPdf(@RequestParam("file") MultipartFile file) throws IOException {
-        if(!"application/pdf".equalsIgnoreCase(file.getContentType())){
+    public Map<String, Object> uploadPdf(@RequestParam("file") MultipartFile file) throws IOException {
+        if (!"application/pdf".equalsIgnoreCase(file.getContentType())) {
             throw new IllegalArgumentException("Uploaded file is not a PDF");
         }
-        String pdfFileName = UUID.randomUUID() + ".pdf";
-        Path pdfPath = Paths.get(IMAGE_DIR, pdfFileName);
+
+        // Save uploaded PDF temporarily
+        String pdfFilename = UUID.randomUUID() + ".pdf";
+        Path pdfPath = Paths.get(IMAGE_DIR, pdfFilename);
         Files.write(pdfPath, file.getBytes());
-        List<String> pages = convertPdfToImages(pdfPath);
-        return Collections.singletonMap("pages", pages);
+
+        // Convert PDF pages to PNG images
+        List<String> imageUrls = convertPdfToImages(pdfPath);
+
+        // Return URLs for frontend to load
+        return Collections.singletonMap("pages", imageUrls);
     }
 
     private List<String> convertPdfToImages(Path pdfPath) throws IOException {
         List<String> imageUrls = new ArrayList<>();
-        try (PDDocument doc = PDDocument.load(pdfPath.toFile())) {
-            PDFRenderer renderer = new PDFRenderer(doc);
-            int numPages = doc.getNumberOfPages();
-            for (int i = 0; i < numPages; i++) {
-                BufferedImage image = renderer.renderImageWithDPI(i, 150);
+        try (PDDocument document = PDDocument.load(pdfPath.toFile())) {
+            PDFRenderer renderer = new PDFRenderer(document);
+            int pageCount = document.getNumberOfPages();
+            for (int i = 0; i < pageCount; i++) {
+                BufferedImage image = renderer.renderImageWithDPI(i, 150); // 150 DPI for quality
                 String imageName = "page-" + UUID.randomUUID() + "-" + i + ".png";
                 Path imagePath = Paths.get(IMAGE_DIR, imageName);
                 ImageIO.write(image, "PNG", imagePath.toFile());
@@ -66,6 +73,7 @@ public class FlipbookApplication implements WebMvcConfigurer {
         return imageUrls;
     }
 
+    // Serve images from the filesystem folder under URL /flipbook-images/**
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry.addResourceHandler("/" + IMAGE_DIR + "/**")
