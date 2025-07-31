@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simple PDF Flipbook</title>
+<style>
+  #drop-area {
+    border: 3px dashed #ccc;
+    max-width: 600px;
+    margin: 50px auto;
+    text-align: center;
+    padding: 30px;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+    color: #666;
+    user-select: none;
+  }
+  #drop-area.hover {
+    border-color: #333;
+    color: black;
+  }
+  #flipbook-container {
+    display: none;
+    margin-top: 30px;
+    text-align: center;
+  }
+  #flipbook img {
+    max-width: 100%;
+    max-height: 600px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    margin: 10px auto;
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div id="drop-area" tabindex="0">
+  <h2>Drop PDF here or click to select</h2>
+  <input type="file" id="fileElem" accept="application/pdf" style="display:none" />
+</div>
+
+<div id="flipbook-container"></div>
+
+<script>
+const dropArea = document.getElementById('drop-area');
+const fileElem = document.getElementById('fileElem');
+const flipbookContainer = document.getElementById('flipbook-container');
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  dropArea.addEventListener(eventName, e => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+});
+
+['dragenter', 'dragover'].forEach(eventName => {
+  dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'));
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+  dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'));
+});
+
+dropArea.addEventListener('drop', e => {
+  if(e.dataTransfer.files.length){
+    handleFile(e.dataTransfer.files[0]);
+  }
+});
+
+dropArea.addEventListener('click', () => fileElem.click());
+dropArea.addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    fileElem.click();
+  }
+});
+
+fileElem.addEventListener('change', e => {
+  if(e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file){
+  if(file.type !== 'application/pdf'){
+    alert('Only PDF files allowed');
+    return;
+  }
+  dropArea.innerHTML = "<h3>Uploading and processing...</h3>";
+  const formData = new FormData();
+  formData.append('file', file);
+  fetch('/api/pdf/upload', {
+    method: 'POST',
+    body: formData
+  }).then(resp => {
+    if(!resp.ok) throw new Error('Upload failed');
+    return resp.json();
+  }).then(data => {
+    if(data.pages && data.pages.length){
+      showFlipbook(data.pages);
+    } else {
+      dropArea.innerHTML = `<h2>No pages returned</h2><p>Drop PDF or click to select</p>`;
+    }
+  }).catch(err => {
+    dropArea.innerHTML = `<h3>Error: ${err.message}</h3><p>Drop PDF or click to select</p>`;
+  });
+}
+
+function showFlipbook(pages){
+  flipbookContainer.innerHTML = '';
+  pages.forEach(url => {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = "Flipbook page";
+    flipbookContainer.appendChild(img);
+  });
+  flipbookContainer.style.display = "block";
+  dropArea.style.display = "none";
+}
+</script>
+
+</body>
+</html>
