@@ -48,6 +48,7 @@ const dropArea = document.getElementById('drop-area');
 const fileElem = document.getElementById('fileElem');
 const flipbookContainer = document.getElementById('flipbook-container');
 
+// Prevent default drag behaviors
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
   dropArea.addEventListener(eventName, e => {
     e.preventDefault();
@@ -55,20 +56,24 @@ const flipbookContainer = document.getElementById('flipbook-container');
   });
 });
 
+// Highlight drop area on drag enter/over
 ['dragenter', 'dragover'].forEach(eventName => {
   dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'));
 });
 
+// Remove highlight on drag leave/drop
 ['dragleave', 'drop'].forEach(eventName => {
   dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'));
 });
 
+// Handle dropped files
 dropArea.addEventListener('drop', e => {
   if(e.dataTransfer.files.length){
     handleFile(e.dataTransfer.files[0]);
   }
 });
 
+// Open file selector on click or "Enter"/"Space" key
 dropArea.addEventListener('click', () => fileElem.click());
 dropArea.addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' ') {
@@ -77,18 +82,21 @@ dropArea.addEventListener('keydown', e => {
   }
 });
 
+// Listen for file input changes
 fileElem.addEventListener('change', e => {
   if(e.target.files.length) handleFile(e.target.files[0]);
 });
 
 function handleFile(file){
   if(file.type !== 'application/pdf'){
-    alert('Only PDF files allowed');
+    alert('Please upload a PDF file');
     return;
   }
+
   dropArea.innerHTML = "<h3>Uploading and processing...</h3>";
   const formData = new FormData();
   formData.append('file', file);
+
   fetch('/api/pdf/upload', {
     method: 'POST',
     body: formData
